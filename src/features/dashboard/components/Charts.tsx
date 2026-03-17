@@ -26,7 +26,6 @@ interface ChartsProps {
 
 export function Charts({ data }: ChartsProps) {
   const categories = useCategoryStore(state => state.categories)
-  const catMap = new Map(categories.map(c => [c.id, c]))
 
   return (
     <>
@@ -63,12 +62,9 @@ export function Charts({ data }: ChartsProps) {
               <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="#94a3b8" />
               <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" tickFormatter={(v: number) => formatBRLShort(v)} />
               <Tooltip content={<CustomTooltip />} />
-              <Legend formatter={(value: string) => {
-                const cat = catMap.get(value)
-                return <span className="text-xs text-gray-500">{cat?.name || value}</span>
-              }} />
+              <Legend formatter={(value: string) => <span className="text-xs text-gray-500">{value}</span>} />
               {categories.map(cat => (
-                <Bar key={cat.id} dataKey={cat.id} name={cat.id} stackId="a" fill={cat.color} />
+                <Bar key={cat.id} dataKey={cat.id} name={cat.name} stackId="a" fill={cat.color} />
               ))}
             </BarChart>
           </ResponsiveContainer>
