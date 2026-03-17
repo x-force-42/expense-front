@@ -1,68 +1,91 @@
-import { v4 as uuidv4 } from 'uuid'
-import { getFromStorage, saveToStorage, STORAGE_KEYS } from '@/shared/lib/storage'
+import { apiClient } from '@/shared/lib/apiClient'
 import type { Expense, CreateExpenseDTO, UpdateExpenseDTO, IExpenseRepository } from '../types'
 
-export class LocalStorageExpenseRepository implements IExpenseRepository {
+interface ApiExpenseResponse {
+  id: string
+  date: string
+  value: number
+  categoryId: string
+  categoryName: string
+  partnerId: string | null
+  partnerName: string | null
+  description: string
+  createdAt: string
+}
+
+function toExpense(r: ApiExpenseResponse): Expense {
+  return {
+    id: r.id,
+    date: r.date,
+    value: r.value,
+    categoryId: r.categoryId,
+    partnerId: r.partnerId,
+    description: r.description,
+    createdAt: r.createdAt,
+  }
+}
+
+export class ApiExpenseRepository implements IExpenseRepository {
   async getAll(): Promise<Expense[]> {
-    return getFromStorage<Expense>(STORAGE_KEYS.expenses).sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    )
+    const data = await apiClient.get<ApiExpenseResponse[]>('/api/v1/expenses')
+    return data.map(toExpense)
   }
 
   async getById(id: string): Promise<Expense | null> {
-    const all = getFromStorage<Expense>(STORAGE_KEYS.expenses)
+    const all = await this.getAll()
     return all.find(e => e.id === id) || null
   }
 
   async create(data: CreateExpenseDTO): Promise<Expense> {
-    const all = getFromStorage<Expense>(STORAGE_KEYS.expenses)
-    const expense: Expense = {
-      ...data,
-      id: uuidv4(),
-      createdAt: new Date().toISOString(),
+    const body = {
+      date: data.date,
+      value: data.value,
+      categoryId: data.categoryId,
+      partnerId: data.partnerId || null,
+      description: data.description,
     }
-    all.push(expense)
-    saveToStorage(STORAGE_KEYS.expenses, all)
-    return expense
+    const r = await apiClient.post<ApiExpenseResponse>('/api/v1/expenses', body)
+    return toExpense(r)
   }
 
   async update(id: string, data: UpdateExpenseDTO): Promise<Expense> {
-    const all = getFromStorage<Expense>(STORAGE_KEYS.expenses)
-    const idx = all.findIndex(e => e.id === id)
-    if (idx === -1) throw new Error('Expense not found')
-    all[idx] = { ...all[idx], ...data }
-    saveToStorage(STORAGE_KEYS.expenses, all)
-    return all[idx]
+    const body = {
+      date: data.date,
+      value: data.value,
+      categoryId: data.categoryId,
+      partnerId: data.partnerId || null,
+      description: data.description,
+    }
+    const r = await apiClient.put<ApiExpenseResponse>(`/api/v1/expenses/${id}`, body)
+    return toExpense(r)
   }
 
   async delete(id: string): Promise<void> {
-    const all = getFromStorage<Expense>(STORAGE_KEYS.expenses)
-    saveToStorage(STORAGE_KEYS.expenses, all.filter(e => e.id !== id))
+    await apiClient.delete(`/api/v1/expenses/${id}`)
   }
 
   async deleteBatch(ids: string[]): Promise<void> {
-    const idSet = new Set(ids)
-    const all = getFromStorage<Expense>(STORAGE_KEYS.expenses)
-    saveToStorage(STORAGE_KEYS.expenses, all.filter(e => !idSet.has(e.id)))
+    await apiClient.post('/api/v1/expenses/batch-delete', { ids })
   }
 
   async importBatch(items: CreateExpenseDTO[]): Promise<Expense[]> {
-    const all = getFromStorage<Expense>(STORAGE_KEYS.expenses)
-    const created: Expense[] = items.map(item => ({
-      ...item,
-      id: uuidv4(),
-      createdAt: new Date().toISOString(),
+    const body = items.map(item => ({
+      date: item.date,
+      value: item.value,
+      categoryId: item.categoryId,
+      partnerId: item.partnerId || null,
+      description: item.description,
     }))
-    saveToStorage(STORAGE_KEYS.expenses, [...all, ...created])
-    return created
+    const data = await apiClient.post<ApiExpenseResponse[]>('/api/v1/expenses/import', body)
+    return data.map(toExpense)
   }
 
   async exportAll(): Promise<Expense[]> {
-    return this.getAll()
+    const data = await apiClient.get<ApiExpenseResponse[]>('/api/v1/expenses/export')
+    return data.map(toExpense)
   }
 }
 
-// Factory function - swap implementation here when moving to REST API
 export function createExpenseRepository(): IExpenseRepository {
-  return new LocalStorageExpenseRepository()
+  return new ApiExpenseRepository()
 }
