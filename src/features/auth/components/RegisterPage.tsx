@@ -1,105 +1,39 @@
 import { useAuth } from '../hooks/useAuth'
 import { useNavigate, Link } from 'react-router-dom'
-import { useEffect, useState, useCallback, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Home } from 'lucide-react'
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
-
-declare global {
-  interface Window {
-    google?: {
-      accounts: {
-        id: {
-          initialize: (config: {
-            client_id: string
-            callback: (response: { credential: string }) => void
-            auto_select?: boolean
-          }) => void
-          renderButton: (
-            element: HTMLElement,
-            config: {
-              theme?: string
-              size?: string
-              width?: string
-              text?: string
-              shape?: string
-              locale?: string
-            },
-          ) => void
-        }
-      }
-    }
-  }
-}
-
-export default function LoginPage() {
-  const { signInWithGoogle, login, isAuthenticated } = useAuth()
+export default function RegisterPage() {
+  const { register, isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
 
   useEffect(() => {
     if (isAuthenticated) navigate('/dashboard', { replace: true })
   }, [isAuthenticated, navigate])
 
-  const handleGoogleCallback = useCallback(
-    async (response: { credential: string }) => {
-      setIsLoading(true)
-      setError(null)
-      try {
-        await signInWithGoogle(response.credential)
-        navigate('/dashboard', { replace: true })
-      } catch {
-        setError('Falha ao autenticar com Google. Tente novamente.')
-      } finally {
-        setIsLoading(false)
-      }
-    },
-    [signInWithGoogle, navigate],
-  )
-
-  useEffect(() => {
-    if (!GOOGLE_CLIENT_ID) return
-
-    const script = document.createElement('script')
-    script.src = 'https://accounts.google.com/gsi/client'
-    script.async = true
-    script.defer = true
-    script.onload = () => {
-      window.google?.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: handleGoogleCallback,
-      })
-      const buttonDiv = document.getElementById('google-signin-button')
-      if (buttonDiv) {
-        window.google?.accounts.id.renderButton(buttonDiv, {
-          theme: 'outline',
-          size: 'large',
-          width: '100%',
-          text: 'signin_with',
-          shape: 'rectangular',
-          locale: 'pt-BR',
-        })
-      }
-    }
-    document.head.appendChild(script)
-
-    return () => {
-      document.head.removeChild(script)
-    }
-  }, [handleGoogleCallback])
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    if (password !== confirmPassword) {
+      setError('As senhas nao coincidem.')
+      return
+    }
+    if (password.length < 6) {
+      setError('A senha deve ter pelo menos 6 caracteres.')
+      return
+    }
     setIsLoading(true)
     setError(null)
     try {
-      await login(email, password)
+      await register(name, email, password)
       navigate('/dashboard', { replace: true })
     } catch {
-      setError('Email ou senha invalidos.')
+      setError('Erro ao criar conta. O email pode ja estar em uso.')
     } finally {
       setIsLoading(false)
     }
@@ -119,8 +53,8 @@ export default function LoginPage() {
 
         {/* Card */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 text-center mb-2">Bem-vindo!</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-6">Faca login para acessar o sistema</p>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 text-center mb-2">Criar conta</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-6">Preencha os dados para se cadastrar</p>
 
           {error && (
             <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-600 dark:text-red-400 text-center">
@@ -129,6 +63,21 @@ export default function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Nome
+              </label>
+              <input
+                id="name"
+                type="text"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-colors text-sm"
+                placeholder="Seu nome"
+                disabled={isLoading}
+              />
+            </div>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Email
@@ -152,10 +101,27 @@ export default function LoginPage() {
                 id="password"
                 type="password"
                 required
+                minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-colors text-sm"
-                placeholder="Sua senha"
+                placeholder="Minimo 6 caracteres"
+                disabled={isLoading}
+              />
+            </div>
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Confirmar senha
+              </label>
+              <input
+                id="confirmPassword"
+                type="password"
+                required
+                minLength={6}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-colors text-sm"
+                placeholder="Repita a senha"
                 disabled={isLoading}
               />
             </div>
@@ -164,30 +130,16 @@ export default function LoginPage() {
               disabled={isLoading}
               className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-medium py-2.5 px-4 rounded-lg transition-colors text-sm"
             >
-              {isLoading ? 'Entrando...' : 'Entrar'}
+              {isLoading ? 'Criando conta...' : 'Cadastrar'}
             </button>
           </form>
 
           <p className="text-sm text-center text-gray-500 dark:text-gray-400 mt-4">
-            Nao tem conta?{' '}
-            <Link to="/register" className="text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
-              Cadastre-se
+            Ja tem conta?{' '}
+            <Link to="/login" className="text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
+              Fazer login
             </Link>
           </p>
-
-          {GOOGLE_CLIENT_ID && (
-            <>
-              <div className="relative my-5">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-200 dark:border-gray-600" />
-                </div>
-                <div className="relative flex justify-center text-xs">
-                  <span className="bg-white dark:bg-gray-800 px-2 text-gray-400 dark:text-gray-500">ou</span>
-                </div>
-              </div>
-              <div id="google-signin-button" className="flex justify-center" />
-            </>
-          )}
         </div>
 
         <p className="text-xs text-gray-400 dark:text-gray-500 text-center mt-6">

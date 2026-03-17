@@ -8,6 +8,8 @@ interface AuthContextType {
   loading: boolean
   signIn: (userData: User) => void
   signInWithGoogle: (idToken: string) => Promise<void>
+  login: (email: string, password: string) => Promise<void>
+  register: (name: string, email: string, password: string) => Promise<void>
   signOut: () => void
   isAuthenticated: boolean
 }
@@ -35,16 +37,27 @@ export function useAuthProvider() {
     localStorage.setItem(STORAGE_KEYS.auth, JSON.stringify(userData))
   }
 
+  const toUser = (response: AuthResponse): User => ({
+    id: response.user.id,
+    name: response.user.name,
+    email: response.user.email,
+    avatar: response.user.pictureUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(response.user.name)}&background=6366f1&color=fff&size=128`,
+    token: response.accessToken,
+  })
+
   const signInWithGoogle = async (idToken: string) => {
     const response = await apiClient.post<AuthResponse>('/api/v1/auth/google', { idToken })
-    const userData: User = {
-      id: response.user.id,
-      name: response.user.name,
-      email: response.user.email,
-      avatar: response.user.pictureUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(response.user.name)}&background=6366f1&color=fff&size=128`,
-      token: response.accessToken,
-    }
-    signIn(userData)
+    signIn(toUser(response))
+  }
+
+  const login = async (email: string, password: string) => {
+    const response = await apiClient.post<AuthResponse>('/api/v1/auth/login', { email, password })
+    signIn(toUser(response))
+  }
+
+  const register = async (name: string, email: string, password: string) => {
+    const response = await apiClient.post<AuthResponse>('/api/v1/auth/register', { name, email, password })
+    signIn(toUser(response))
   }
 
   const signOut = () => {
@@ -57,6 +70,8 @@ export function useAuthProvider() {
     loading,
     signIn,
     signInWithGoogle,
+    login,
+    register,
     signOut,
     isAuthenticated: !!user,
   }

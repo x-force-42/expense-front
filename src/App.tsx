@@ -3,7 +3,7 @@ import { AuthProvider, useAuth } from '@/features/auth'
 import { ThemeProvider } from '@/shared/hooks/useTheme'
 import { DataLoader } from '@/shared/components/DataLoader'
 import AppLayout from '@/shared/components/AppLayout'
-import { LoginPage } from '@/features/auth'
+import { LoginPage, RegisterPage } from '@/features/auth'
 import { DashboardPage } from '@/features/dashboard'
 import { ExpenseList } from '@/features/expenses'
 import { CategoriesPage } from '@/features/categories'
@@ -29,6 +29,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
+      <Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
       <Route
         element={
           <ProtectedRoute>
