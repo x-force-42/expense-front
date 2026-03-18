@@ -44,7 +44,7 @@ export function useImport() {
       let wb
       if (isCSV) {
         const text = await file.text()
-        wb = XLSX.read(text, { type: 'string' })
+        wb = XLSX.read(text, { type: 'string', raw: true })
       } else {
         const buffer = await file.arrayBuffer()
         wb = XLSX.read(buffer, { type: 'array', codepage: 65001 })
